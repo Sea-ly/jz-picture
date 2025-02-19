@@ -1,4 +1,4 @@
-package com.jz.jzpicture.model.dto.File;
+package com.jz.jzpicture.model.dto.file;
 
 import lombok.Data;
 
@@ -16,6 +16,10 @@ public class UploadPictureResult {
      * 图片地址
      */
     private String url;
+    /**
+     * 缩略图url
+     */
+    private String thumbnailUrl;
     /**
      * 图片名称
      */

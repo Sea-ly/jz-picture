@@ -100,6 +100,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         //4. 保存用户的登录态
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE,user);
+        log.info("登陆时的session：{}",request.getSession().getId());
         return this.getLoginUserVO(user);
     }
 
@@ -167,6 +168,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getLoginUser(HttpServletRequest request) {
         //判断是否已登录
         Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        log.info("登陆后的session：{}",request.getSession().getId());
         User currentUser = (User) userObj;
         if(currentUser == null || currentUser.getId() == null){
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);

@@ -1,6 +1,7 @@
 package com.jz.jzpicture.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.jz.jzpicture.model.dto.picture.PictureReviewRequest;
 import com.jz.jzpicture.model.dto.user.UserQueryRequest;
 import com.jz.jzpicture.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -89,4 +90,6 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean isAdmin(User user);
+
+
 }

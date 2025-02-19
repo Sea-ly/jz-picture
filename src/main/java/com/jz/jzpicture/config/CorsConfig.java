@@ -13,15 +13,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // 覆盖所有请求
         registry.addMapping("/**")
-                // 允许发送 Cookie
                 .allowCredentials(true)
-                // 放行哪些域名（必须用 patterns，否则 * 会和 allowCredentials 冲突）
-                .allowedOriginPatterns("*")
+                // 明确指定允许的源，而不是使用通配符
+                .allowedOrigins(
+                        "http://localhost:5173",  // 本地前端地址
+                        "http://117.72.112.21",  // 云服务器本地前端地址
+                        "http://117.72.112.21:80",  // 云服务器本地前端地址
+                        "http://www.jcclubly.top"     // 域名
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("*");

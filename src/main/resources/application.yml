@@ -2,15 +2,31 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    # cookie 30天过期
+    session:
+      cookie:
+        max-age: 2592000
 
 spring:
   application:
     name: jz-picture
+  # session配置
+  session:
+    store-type: redis
+    # session默认过期时间30天
+    timeout: 2592000
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/jz_picture
+    url: jdbc:mysql://117.72.112.21:3306/jz_picture
     username: root
     password: "060100"
+  redis:
+    database: 1
+    host: 117.72.112.21
+    port: 6379
+    timeout: 5000
+    password: "060100"
+
   # 开放更大的文件上传体积
   servlet:
     multipart:
