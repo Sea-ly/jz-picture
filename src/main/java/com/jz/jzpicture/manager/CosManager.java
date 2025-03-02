@@ -6,6 +6,7 @@ import com.qcloud.cos.COSClient;
 import com.qcloud.cos.exception.CosClientException;
 import com.qcloud.cos.model.*;
 import com.qcloud.cos.model.ciModel.persistence.PicOperations;
+import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.util.List;
  * @Date: 2025/2/11  9:17
  */
 @Component
+@Slf4j
 public class CosManager {
 
     @Resource
@@ -29,6 +31,7 @@ public class CosManager {
 
     @Resource
     private COSClient cosClient;
+
 
     /**
      * 上传对象
@@ -80,22 +83,34 @@ public class CosManager {
         // 1 表示返回原图信息
         picOperations.setIsPicInfo(1);
         List<PicOperations.Rule> rules = new ArrayList<>();
-        // 图片压缩(成webp格式)
-        String webKey = FileUtil.mainName(key) + ".webp";
+        // 图片压缩(jpg格式)
+        String webKey = FileUtil.mainName(key) + ".jpg";
         PicOperations.Rule compressRule = new PicOperations.Rule();
         compressRule.setBucket(cosClientConfig.getBucket());
         compressRule.setFileId(webKey);
-        compressRule.setRule("imageMogr2/format/webp");
+        // 通用转换格式参数
+        String commonParams = "/strip/format/jpg";
+        if (file.length() > 3000 * 1024) {
+            // 大图压缩：
+            compressRule.setRule("imageMogr2" + commonParams + "/quality/85");
+        } else if (file.length() > 500 * 1024) {
+            // 中等压缩：
+            compressRule.setRule("imageMogr2" + commonParams + "/quality/95");
+        } else {
+            // 小图：保持质量
+            compressRule.setRule("imageMogr2" + commonParams );
+        }
         rules.add(compressRule);
+
         //缩略图处理
-        //仅对大于20KB的图片进行处理
-        if(file.length() > 2 * 1024){
+        //仅对大于100KB的图片进行处理
+        if(file.length() > 100 * 1024){
             PicOperations.Rule thumbnailRule = new PicOperations.Rule();
             String thumbnailRuleKey = FileUtil.mainName(key) + "_thumbnail."+ FileUtil.getSuffix(key);
             thumbnailRule.setBucket(cosClientConfig.getBucket());
             thumbnailRule.setFileId(thumbnailRuleKey);
             //缩放规则
-            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>",128,128));
+            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>",512,512));
             rules.add(thumbnailRule);
         }
         //构造处理参数
@@ -103,6 +118,7 @@ public class CosManager {
         putObjectRequest.setPicOperations(picOperations);
         return cosClient.putObject(putObjectRequest);
     }
+
 
 
 

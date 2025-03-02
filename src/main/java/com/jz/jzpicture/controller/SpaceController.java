@@ -9,10 +9,13 @@ import com.jz.jzpicture.annotation.AuthCheck;
 import com.jz.jzpicture.common.BaseResponse;
 import com.jz.jzpicture.common.DeleteRequest;
 import com.jz.jzpicture.common.ResultUtils;
+import com.jz.jzpicture.constant.SpaceUserPermissionConstant;
 import com.jz.jzpicture.constant.UserConstant;
 import com.jz.jzpicture.exception.BusinessException;
 import com.jz.jzpicture.exception.ErrorCode;
 import com.jz.jzpicture.exception.ThrowUtils;
+import com.jz.jzpicture.manager.auth.SpaceUserAuthManager;
+import com.jz.jzpicture.manager.auth.annotation.SaSpaceCheckPermission;
 import com.jz.jzpicture.model.dto.space.*;
 import com.jz.jzpicture.model.entity.Space;
 import com.jz.jzpicture.model.entity.User;
@@ -53,6 +56,8 @@ public class SpaceController {
     private UserService userService;
     @Resource
     private SpaceService spaceService;
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
 
     /**
@@ -150,7 +155,11 @@ public class SpaceController {
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
+        return ResultUtils.success(spaceVO);
     }
 
     /**

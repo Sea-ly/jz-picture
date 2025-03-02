@@ -9,6 +9,7 @@ import com.jz.jzpicture.model.entity.Picture;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -81,6 +82,10 @@ public class PictureVO implements Serializable {
      */
     private String picFormat;
     /**
+     * 图片主色调
+     */
+    private String picColor;
+    /**
      * 创建时间
      */
     private Date createTime;
@@ -107,6 +112,11 @@ public class PictureVO implements Serializable {
      * 创建的用户信息
      */
     private UserVO userVO;
+    /**
+     * 权限列表
+     */
+    private List<String> permissionList = new ArrayList<>();
+
 
     /**
      * PictureVO转换Picture

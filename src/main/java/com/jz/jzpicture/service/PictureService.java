@@ -2,6 +2,8 @@ package com.jz.jzpicture.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jz.jzpicture.api.aliyunAI.model.CreateOutPaintingTaskRequest;
+import com.jz.jzpicture.api.aliyunAI.model.CreateOutPaintingTaskResponse;
 import com.jz.jzpicture.model.dto.picture.*;
 import com.jz.jzpicture.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -10,6 +12,7 @@ import com.jz.jzpicture.model.vo.PictureVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
 * @author 86151
@@ -109,4 +112,35 @@ public interface PictureService extends IService<Picture> {
      * @param picture
      */
     void checkPictureAuth(User loginUser, Picture picture);
+
+    /**
+     * 颜色搜图
+     * @param picColor
+     * @param spaceId
+     * @param loginUser
+     * @return
+     */
+    List<PictureVO> searchPictureByColor(String picColor, Long spaceId, User loginUser);
+
+    /**
+     * 批量编辑图片
+     * @param pictureEditByBatchRequest
+     * @param loginUser
+     */
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
+
+    /**
+     * 创建AI扩图请求
+     * @param createPictureOutPaintingTaskRequest
+     * @param loginUser
+     */
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
+
+    /**
+     * 用户上传头像
+     * @param multipartFile
+     * @param loginUser
+     * @return
+     */
+    String uploadAvatar(MultipartFile multipartFile, User loginUser);
 }

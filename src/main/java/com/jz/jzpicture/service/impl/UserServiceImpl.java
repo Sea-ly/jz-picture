@@ -2,15 +2,23 @@ package com.jz.jzpicture.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jz.jzpicture.common.ResultUtils;
 import com.jz.jzpicture.constant.UserConstant;
 import com.jz.jzpicture.exception.BusinessException;
 import com.jz.jzpicture.exception.ErrorCode;
 import com.jz.jzpicture.exception.ThrowUtils;
+import com.jz.jzpicture.manager.auth.StpKit;
 import com.jz.jzpicture.model.dto.user.UserQueryRequest;
+import com.jz.jzpicture.model.dto.user.VipCode;
 import com.jz.jzpicture.model.entity.User;
 import com.jz.jzpicture.model.enums.UserRoleEnum;
 import com.jz.jzpicture.model.vo.LoginUserVO;
@@ -18,11 +26,17 @@ import com.jz.jzpicture.model.vo.UserVO;
 import com.jz.jzpicture.service.UserService;
 import com.jz.jzpicture.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +47,7 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService{
+
 
 
     /**
@@ -63,8 +78,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        user.setUserName("新用户");
+        String uuid = RandomUtil.randomString(5);
+        user.setUserName("新用户"+"_"+uuid);
         user.setUserRole(UserRoleEnum.USER.getValue());
+        user.setUserAvatar(UserConstant.USER_DEFAULT_AVATAR);
         boolean saveResult = this.save(user);
         ThrowUtils.throwIf(!saveResult, ErrorCode.SYSTEM_ERROR, "注册失败，系统错误");
         return user.getId();
@@ -97,10 +114,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             log.info("user login failed, userAccount cannot match userPassword");
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户不存在或者密码错误");
         }
-
         //4. 保存用户的登录态
         request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE,user);
-        log.info("登陆时的session：{}",request.getSession().getId());
+        //5. 记录用户登录态到Sa-token, 便于空间鉴权时使用
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(UserConstant.USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 
@@ -168,7 +186,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getLoginUser(HttpServletRequest request) {
         //判断是否已登录
         Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
-        log.info("登陆后的session：{}",request.getSession().getId());
         User currentUser = (User) userObj;
         if(currentUser == null || currentUser.getId() == null){
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -228,6 +245,121 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean isAdmin(User user) {
         return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
     }
+    /**
+     * 是否为Vip
+     * @param user
+     * @return
+     */
+    @Override
+    public boolean isVip(User user) {
+        return user != null && UserRoleEnum.VIP.getValue().equals(user.getUserRole());
+    }
+
+
+    // 新增依赖注入
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    // 文件读写锁（确保并发安全）
+    private final ReentrantLock fileLock = new ReentrantLock();
+
+
+    /**
+     * 兑换会员
+     *
+     * @param user
+     * @param vipCode
+     * @return
+     */
+    @Override
+    public boolean exchangeVip(User user, String vipCode) {
+        // 1. 参数校验
+        if (user == null || StrUtil.isBlank(vipCode)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 2. 读取并校验兑换码
+        VipCode targetCode = validateAndMarkVipCode(vipCode);
+        // 3. 更新用户信息
+        updateUserVipInfo(user, targetCode.getCode());
+        return true;
+    }
+
+
+    /**
+     * 校验兑换码并标记为已使用
+     */
+    private VipCode validateAndMarkVipCode(String vipCode) {
+        fileLock.lock(); // 加锁保证文件操作原子性
+        try {
+            // 读取 JSON 文件
+            JSONArray jsonArray = readVipCodeFile();
+
+            // 查找匹配的未使用兑换码
+            List<VipCode> codes = JSONUtil.toList(jsonArray, VipCode.class);
+            VipCode target = codes.stream()
+                    .filter(code -> code.getCode().equals(vipCode) && !code.isHasUsed())
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PARAMS_ERROR, "无效的兑换码"));
+
+            // 标记为已使用
+            target.setHasUsed(true);
+
+            // 写回文件
+            writeVipCodeFile(JSONUtil.parseArray(codes));
+            return target;
+        } finally {
+            fileLock.unlock();
+        }
+    }
+
+    /**
+     * 读取兑换码文件
+     */
+    private JSONArray readVipCodeFile() {
+        try {
+            Resource resource = resourceLoader.getResource("classpath:biz/vipCode.json");
+            String content = FileUtil.readString(resource.getFile(), StandardCharsets.UTF_8);
+            return JSONUtil.parseArray(content);
+        } catch (IOException e) {
+            log.error("读取兑换码文件失败", e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "系统繁忙");
+        }
+    }
+
+    /**
+     * 写入兑换码文件
+     */
+    private void writeVipCodeFile(JSONArray jsonArray) {
+        try {
+            Resource resource = resourceLoader.getResource("classpath:biz/vipCode.json");
+            FileUtil.writeString(jsonArray.toStringPretty(), resource.getFile(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            log.error("更新兑换码文件失败", e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "系统繁忙");
+        }
+    }
+
+    /**
+     * 更新用户会员信息
+     */
+    private void updateUserVipInfo(User user, String usedVipCode) {
+        // 计算过期时间（当前时间 + 1 年）
+        Date expireTime = DateUtil.offsetMonth(new Date(), 12); // 计算当前时间加 1 年后的时间
+
+        // 构建更新对象
+        User updateUser = new User();
+        updateUser.setId(user.getId());
+        updateUser.setVipExpireTime(expireTime); // 设置过期时间
+        updateUser.setVipCode(usedVipCode);     // 记录使用的兑换码
+        updateUser.setUserRole(UserConstant.VIP_ROLE);       // 修改用户角色
+
+        // 执行更新
+        boolean updated = this.updateById(updateUser);
+        if (!updated) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "开通会员失败，操作数据库失败");
+        }
+    }
+
 
 
 }

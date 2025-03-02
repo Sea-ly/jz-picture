@@ -31,6 +31,20 @@ public class UserVO implements Serializable {
      */
     private String userAvatar;
     /**
+     * 会员过期时间
+     */
+    private Date vipExpireTime;
+
+    /**
+     * 会员兑换码
+     */
+    private String vipCode;
+
+    /**
+     * 会员编号
+     */
+    private Long vipNumber;
+    /**
      * 用户简介
      */
     private String userProfile;

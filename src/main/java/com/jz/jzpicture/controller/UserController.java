@@ -13,11 +13,15 @@ import com.jz.jzpicture.model.dto.user.*;
 import com.jz.jzpicture.model.entity.User;
 import com.jz.jzpicture.model.vo.LoginUserVO;
 import com.jz.jzpicture.model.vo.UserVO;
+import com.jz.jzpicture.service.PictureService;
 import com.jz.jzpicture.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -29,10 +33,12 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/user")
+@Slf4j
 public class UserController {
     @Resource
     private UserService userService;
-
+    @Resource
+    private PictureService pictureService;
     /**
      * 用户注册
      * @return
@@ -152,10 +158,46 @@ public class UserController {
      */
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     @PostMapping("/update")
-    public BaseResponse<Boolean> deleteUser(@RequestBody UserUpdateRequest userUpdateRequest){
+    public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest){
         ThrowUtils.throwIf(userUpdateRequest == null ||userUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
         User user = new User();
         BeanUtil.copyProperties(userUpdateRequest, user);
+        Boolean result = userService.updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+    /**
+     * 更新用户
+     * @param userUpdateRequest
+     * @return
+     */
+    @PostMapping("/edit")
+    public BaseResponse<Boolean> editUser(@RequestBody UserUpdateRequest userUpdateRequest){
+        ThrowUtils.throwIf(userUpdateRequest == null ||userUpdateRequest.getId() == null, ErrorCode.PARAMS_ERROR);
+        User user = userService.getById(userUpdateRequest.getId());
+        ThrowUtils.throwIf(user == null, ErrorCode.PARAMS_ERROR);
+        user.setUserName(userUpdateRequest.getUserName());
+        user.setUserAvatar(userUpdateRequest.getUserAvatar());
+        user.setUserProfile(userUpdateRequest.getUserProfile());
+        user.setEditTime(new Date());
+        Boolean result = userService.updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+    /**
+     * 更新用户
+     * @param updatePasswordRequest
+     * @return
+     */
+    @PostMapping("/editPassword")
+    public BaseResponse<Boolean> editPassword(@RequestBody UserUpdatePasswordRequest updatePasswordRequest){
+        ThrowUtils.throwIf(updatePasswordRequest == null ||updatePasswordRequest.getId() == null, ErrorCode.PARAMS_ERROR);
+        User user = userService.getById(updatePasswordRequest.getId());
+        ThrowUtils.throwIf(user == null, ErrorCode.PARAMS_ERROR);
+        String password = updatePasswordRequest.getPassword();
+        String encryptPassword = userService.getEncryptPassword(password);
+        user.setUserPassword(encryptPassword);
+        user.setEditTime(new Date());
         Boolean result = userService.updateById(user);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
@@ -178,9 +220,29 @@ public class UserController {
         userVOPage.setRecords(userVOList);
         return ResultUtils.success(userVOPage);
     }
+    /**
+     * 兑换会员
+     */
+    @PostMapping("/exchange/vip")
+    public BaseResponse<Boolean> exchangeVip(@RequestBody VipExchangeRequest vipExchangeRequest,
+                                             HttpServletRequest httpServletRequest) {
+        ThrowUtils.throwIf(vipExchangeRequest == null, ErrorCode.PARAMS_ERROR);
+        String vipCode = vipExchangeRequest.getVipCode();
+        User loginUser = userService.getLoginUser(httpServletRequest);
+        // 调用 service 层的方法进行会员兑换
+        boolean result = userService.exchangeVip(loginUser, vipCode);
+        return ResultUtils.success(result);
+    }
 
-
-
-
+    /**
+     * 用户上传头像
+     */
+    @PostMapping("/uploadAvatar")
+    public BaseResponse<String> uploadAvatar(@RequestPart("file") MultipartFile multipartFile,
+                                                 HttpServletRequest httpServletRequest) {
+        User loginUser = userService.getLoginUser(httpServletRequest);
+        String avatarUrl = pictureService.uploadAvatar(multipartFile, loginUser);
+        return ResultUtils.success(avatarUrl);
+    }
 
 }

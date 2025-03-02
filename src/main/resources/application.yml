@@ -18,7 +18,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://117.72.112.21:3306/jz_picture
-    username: root
+    username: jz_picture_root
     password: "060100"
   redis:
     database: 1
@@ -26,6 +26,26 @@ spring:
     port: 6379
     timeout: 5000
     password: "060100"
+  rabbitmq:
+    host: 117.72.112.21
+    port: 5672
+    username: admin
+    password: 200361ly
+    virtual-host: /
+    connection-timeout: 1500
+    # 生产者确认机制
+    publisher-confirm-type: correlated # 重要！
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual # 推荐手动ACK
+        retry:
+          enabled: true
+          max-attempts: 3 #最大重试次数
+          initial-interval: 1000
+          multiplier: 2.0 #重试间隔倍数递增
+        default-requeue-rejected: false # 禁止重新入队
+
 
   # 开放更大的文件上传体积
   servlet:
@@ -39,7 +59,8 @@ mybatis-plus:
     # 是否开启自动转换驼峰命名
     map-underscore-to-camel-case: false
     # 仅在开发环境打印日志
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: ''
   global-config:
     db-config:
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名
@@ -56,3 +77,10 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.jz.jzpicture.controller
+  basic:
+    password: 123456
+    username: root
+    enable: true
+
+
+

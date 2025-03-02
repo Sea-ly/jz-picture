@@ -21,6 +21,10 @@ public interface UserConstant {
      * 管理员角色
      */
     String ADMIN_ROLE = "admin";
+    /**
+     * vip角色
+     */
+    String VIP_ROLE = "vip";
 
     /**
      * 默认密码
@@ -30,5 +34,6 @@ public interface UserConstant {
      * 密码加盐
      */
      String SALT = "jz-picture-ly";
+     String USER_DEFAULT_AVATAR = "https://jz-picture-1340777869.cos.ap-chengdu.myqcloud.com/avatar/default.jpg";
     // endregion
 }

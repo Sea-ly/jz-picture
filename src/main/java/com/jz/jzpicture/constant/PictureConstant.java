@@ -12,6 +12,6 @@ public interface PictureConstant {
     /**
      * 图片最大尺寸
      */
-     long MAX_SIZE = 2 * 1024 * 1024L;
+     long MAX_SIZE = 5 * 1024 * 1024L;
      String DEFAULT_SUFFIX = "jpg" ;
 }

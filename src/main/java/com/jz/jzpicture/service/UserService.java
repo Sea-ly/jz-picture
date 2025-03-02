@@ -7,6 +7,7 @@ import com.jz.jzpicture.model.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jz.jzpicture.model.vo.LoginUserVO;
 import com.jz.jzpicture.model.vo.UserVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -90,6 +91,18 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean isAdmin(User user);
+
+    /**
+     * 是否为vip
+     * @param user
+     * @return
+     */
+    boolean isVip(User user);
+
+    /**
+     * 用户兑换会员（会员码兑换）
+     */
+    boolean exchangeVip(User user, String vipCode);
 
 
 }
